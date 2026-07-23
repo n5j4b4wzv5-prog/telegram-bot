@@ -79,7 +79,7 @@ def main():
     app.add_handler(CommandHandler("setup", setup))
     app.add_handler(CommandHandler("status", status))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    print("Бот запущен!")
+    print("🤖 Бот запущен!")
     app.run_polling()
 
 if __name__ == "__main__":
