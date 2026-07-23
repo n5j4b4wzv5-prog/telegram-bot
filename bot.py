@@ -3,7 +3,7 @@ import json
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 DATA_FILE = "topics.json"
 
 def load_data():
@@ -22,7 +22,7 @@ group_id = data.get("group_id")
 user_topics = data.get("user_topics", {})
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 Привет! Напиши /setup в группе.")
+    await update.message.reply_text("👋 Привет! Я бот.")
 
 async def setup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global group_id
@@ -32,13 +32,13 @@ async def setup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data["group_id"] = update.message.chat.id
     group_id = update.message.chat.id
     save_data(data)
-    await update.message.reply_text(f"✅ Группа сохранена!")
+    await update.message.reply_text("✅ Группа сохранена!")
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not group_id:
         await update.message.reply_text("ℹ️ Бот не настроен.")
     else:
-        await update.message.reply_text(f"📊 Группа: {group_id}\n📌 Топиков: {len(user_topics)}")
+        await update.message.reply_text(f"📊 Группа: {group_id}")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not group_id:
@@ -53,7 +53,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             topic = await context.bot.create_forum_topic(
                 chat_id=group_id,
-                name=f"💬 {user.full_name}"
+                name=f"{user.full_name}"
             )
             tid = topic.message_thread_id
             user_topics[uid] = tid
@@ -67,7 +67,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(
             chat_id=group_id,
             message_thread_id=tid,
-            text=f"💬 {user.full_name}:\n{update.message.text}"
+            text=f"{user.full_name}:\n{update.message.text}"
         )
         await update.message.reply_text("✅ Отправлено!")
     except Exception as e:
@@ -79,7 +79,7 @@ def main():
     app.add_handler(CommandHandler("setup", setup))
     app.add_handler(CommandHandler("status", status))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    print("🤖 Бот запущен!")
+    print("Бот запущен!")
     app.run_polling()
 
 if __name__ == "__main__":
