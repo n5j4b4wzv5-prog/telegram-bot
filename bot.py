@@ -1,12 +1,9 @@
 import os
 import json
-import asyncio
-from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-bot = Bot(token=TOKEN)
-dp = Dispatcher()
 DATA_FILE = "topics.json"
 
 def load_data():
@@ -24,61 +21,66 @@ data = load_data()
 group_id = data.get("group_id")
 user_topics = data.get("user_topics", {})
 
-@dp.message(Command("start"))
-async def start_cmd(message: types.Message):
-    await message.answer("👋 Привет! Напиши /setup в группе.")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("👋 Привет! Напиши /setup в группе.")
 
-@dp.message(Command("setup"))
-async def setup_cmd(message: types.Message):
+async def setup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global group_id
-    if message.chat.type != "supergroup":
-        return await message.reply("❌ Это не супергруппа!")
-    data["group_id"] = message.chat.id
-    group_id = message.chat.id
+    if update.message.chat.type != "supergroup":
+        await update.message.reply_text("❌ Это не супергруппа!")
+        return
+    data["group_id"] = update.message.chat.id
+    group_id = update.message.chat.id
     save_data(data)
-    await message.reply(f"✅ Группа сохранена!")
+    await update.message.reply_text(f"✅ Группа сохранена!")
 
-@dp.message(Command("status"))
-async def status_cmd(message: types.Message):
+async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not group_id:
-        await message.answer("ℹ️ Бот не настроен.")
+        await update.message.reply_text("ℹ️ Бот не настроен.")
     else:
-        await message.answer(f"📊 Группа: {group_id}\n📌 Топиков: {len(user_topics)}")
+        await update.message.reply_text(f"📊 Группа: {group_id}\n📌 Топиков: {len(user_topics)}")
 
-@dp.message(lambda msg: msg.chat.type == "private" and not msg.text.startswith("/"))
-async def handle_msg(message: types.Message):
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not group_id:
-        return await message.answer("🔧 Бот не настроен.")
+        await update.message.reply_text("🔧 Бот не настроен.")
+        return
     
-    uid = str(message.from_user.id)
+    user = update.message.from_user
+    uid = str(user.id)
     tid = user_topics.get(uid)
     
     if not tid:
         try:
-            topic = await bot.create_forum_topic(
+            topic = await context.bot.create_forum_topic(
                 chat_id=group_id,
-                name=f"💬 {message.from_user.full_name}"
+                name=f"💬 {user.full_name}"
             )
             tid = topic.message_thread_id
             user_topics[uid] = tid
             data["user_topics"] = user_topics
             save_data(data)
         except Exception as e:
-            return await message.answer(f"❌ Ошибка: {e}")
+            await update.message.reply_text(f"❌ Ошибка: {e}")
+            return
     
     try:
-        await bot.send_message(
+        await context.bot.send_message(
             chat_id=group_id,
             message_thread_id=tid,
-            text=f"💬 {message.from_user.full_name}:\n{message.text}"
+            text=f"💬 {user.full_name}:\n{update.message.text}"
         )
-        await message.answer("✅ Отправлено!")
+        await update.message.reply_text("✅ Отправлено!")
     except Exception as e:
-        await message.answer(f"❌ Ошибка: {e}")
+        await update.message.reply_text(f"❌ Ошибка: {e}")
 
-async def main():
+def main():
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("setup", setup))
+    app.add_handler(CommandHandler("status", status))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     print("🤖 Бот запущен!")
-    await dp.start_polling(bot)
+    app.run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
