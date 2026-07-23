@@ -44,11 +44,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not group_id:
         await update.message.reply_text("🔧 Бот не настроен.")
         return
-    
+
     user = update.message.from_user
     uid = str(user.id)
     tid = user_topics.get(uid)
-    
+
     if not tid:
         try:
             topic = await context.bot.create_forum_topic(
@@ -62,7 +62,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await update.message.reply_text(f"❌ Ошибка: {e}")
             return
-    
+
     try:
         await context.bot.send_message(
             chat_id=group_id,
